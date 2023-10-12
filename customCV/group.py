@@ -47,7 +47,7 @@ class RandomGroupKfold(GroupKFold):
 
 class RepeatedGroupKfold(_RepeatedSplits):
     """
-    Repeated group CV iterator with no overlap.
+    Repeated group CV iterator with no overlap (per repeat).
     """
     def __init__(self, **kwargs):
         super().__init__(RandomGroupKfold, **kwargs)
