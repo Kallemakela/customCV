@@ -57,10 +57,15 @@ class RepeatedGroupKfold(_RepeatedSplits):
 
 class RepeatedUniqueFoldGroupKFold:
     """
-    Repeated GroupKFold with systematic unique folds across all repeats for even or uneven fold sizes.
-    Each group appears in the test set exactly once per repeat.
-    Randomizaton works by generating a mapping from the original group ids to a random permutation of the group ids on each repeat.
+    Repeated GroupKFold with unique folds across all repeats for even or uneven fold sizes.
 
+    Each group appears in the test set exactly once per repeat.
+    All folds are unique, even across repeats.
+    Randomizaton works by generating a mapping from the original group ids to a random permutation of the group ids on each repeat.
+    
+    The fold search is performed in a depth-first manner, by finding a unique fold from groups that have not been used yet on this repeat, adding it to a list of potential folds, and moving on to the next fold.
+    If the fold search ends up in a situation where it is not possible to generate valid folds from the remaining groups, it backtracks by one fold and marks the backtracked fold as exhausted.
+    
     Parameters:
     n_splits (int): Number of folds. Must be at least 2.
     n_repeats (int): Number of times cross-validator needs to be repeated.
