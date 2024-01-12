@@ -61,9 +61,9 @@ class RepeatedUniqueFoldGroupKFold:
 
     Each group appears in the test set exactly once per repeat.
     All folds are unique, even across repeats.
-    Randomizaton works by generating a mapping from the original group ids to a random permutation of the group ids on each repeat.
+    Randomizaton works by generating a mapping from the original groups to a random permutation of the groups on each repeat.
     
-    The fold search is performed in a depth-first manner, by finding a unique fold from groups that have not been used yet on this repeat, adding it to a list of potential folds, and moving on to the next fold.
+    The fold search is performed in a depth-first manner, by first finding a unique fold from groups that have not yet been used on this repeat, adding it to a list of potential folds, and moving on to the next fold.
     If the fold search ends up in a situation where it is not possible to generate valid folds from the remaining groups, it backtracks by one fold and marks the backtracked fold as exhausted.
     
     Parameters:
