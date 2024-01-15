@@ -17,12 +17,12 @@ from customCV.group import RepeatedUniqueFoldGroupKFold
 xsize = 10000
 n_subjects = 31
 k = n_subjects // 2
-n_repeats = 4
+n_repeats = 2
 
 cross_cv = RepeatedUniqueFoldGroupKFold(
     n_splits=k,
     n_repeats=n_repeats,
-    # random_state=1,
+    random_state=1,
 )
 
 Xc = np.arange(xsize)

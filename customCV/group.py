@@ -94,11 +94,6 @@ class RepeatedUniqueFoldGroupKFold:
             potential_folds = []
             available_groups = unique_groups.copy()
 
-            if self.random_state is not None:
-                rng = np.random.default_rng(self.random_state)
-                self.random_group_map = dict(zip(unique_groups, rng.permutation(unique_groups)))
-                self.random_group_map_inv = {v: k for k, v in self.random_group_map.items()}
-
             while len(potential_folds) < self.n_splits:
                 exhausted = []
                 fold_ix = len(potential_folds)
@@ -147,11 +142,14 @@ class RepeatedUniqueFoldGroupKFold:
             print(f"{min_group_combinations=} >= {self.n_repeats*n_min_groups=}")
             raise ValueError("Not enough unique folds for the requested number of repeats.")
         
-        if self.random_state is not None:
-            rng = np.random.default_rng(self.random_state)
- 
         used_folds = set()
         for ri in range(self.n_repeats):
+
+            if self.random_state is not None:
+                rng = np.random.default_rng(self.random_state + ri)
+                self.random_group_map = dict(zip(unique_groups, rng.permutation(unique_groups)))
+                self.random_group_map_inv = {v: k for k, v in self.random_group_map.items()}
+
             folds = self.find_next_folds_(unique_groups, groups_per_fold, used_folds)
             for fold in folds:
                 test_idx = np.isin(groups, fold)
