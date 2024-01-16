@@ -102,12 +102,13 @@ class RepeatedUniqueFoldGroupKFold:
                 if next_fold is None:
                     if len(potential_folds) == 0:
                         raise ValueError("The 'groups' parameter contains too few unique groups to create folds.")
-                    exhausted = potential_folds.pop()
+                    exhausted_fold = potential_folds.pop()
+                    exhausted.append(exhausted_fold)
                     
                     if self.random_group_map is not None:
-                        exhausted = tuple(sorted(self.random_group_map_inv[g] for g in exhausted))
+                        exhausted = tuple(sorted(self.random_group_map_inv[g] for g in exhausted_fold))
 
-                    available_groups = np.concatenate([available_groups, exhausted])
+                    available_groups = np.concatenate([available_groups, exhausted_fold])
                 else:
                     potential_folds.append(next_fold)
                     
