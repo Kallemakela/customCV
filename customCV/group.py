@@ -72,11 +72,14 @@ class RepeatedUniqueFoldGroupKFold:
     random_state (int, RandomState instance or None, optional): random seed
     """
 
-    def __init__(self, n_splits=5, n_repeats=10, random_state=None):
+    def __init__(self, n_splits=5, n_repeats=10, random_state=42):
         self.n_splits = n_splits
         self.n_repeats = n_repeats
         self.random_state = random_state
         self.random_group_map = None
+
+        if random_state == None:
+            print(f"Warning: With random_state=None Some groups might be more likely to appear in the same split.")
 
     def find_next_fold_(self, available_groups, fold_size, used_folds, exhausted=[]):
             fold_gen = combinations(available_groups, fold_size)
@@ -146,6 +149,7 @@ class RepeatedUniqueFoldGroupKFold:
         used_folds = set()
         for ri in range(self.n_repeats):
 
+			# generate new random mapping on each iteration to avoid appearance correlations between groups
             if self.random_state is not None:
                 rng = np.random.default_rng(self.random_state + ri)
                 self.random_group_map = dict(zip(unique_groups, rng.permutation(unique_groups)))

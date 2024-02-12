@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
 from collections import defaultdict
-from sklearn.utils import check_random_state
-from sklearn.model_selection import check_cv
+from itertools import combinations
+from scipy.stats import chisquare
 from customCV.group import RepeatedUniqueFoldGroupKFold
 
 
@@ -11,7 +11,7 @@ def test_initialization():
     cv = RepeatedUniqueFoldGroupKFold(n_splits=4, n_repeats=3)
     assert cv.n_splits == 4
     assert cv.n_repeats == 3
-    assert cv.random_state == None
+    assert cv.random_state == 42
 
 def test_split_functionality():
     groups = np.array([1, 1, 2, 2, 3, 3, 4, 4, 5, 5])
@@ -74,7 +74,7 @@ def test_exhaustion():
     n_repeats = 3
     X = np.ones(len(groups))
     y = np.ones(len(groups))
-    cv = RepeatedUniqueFoldGroupKFold(n_splits=n_splits, n_repeats=n_repeats)
+    cv = RepeatedUniqueFoldGroupKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=None)
 
     seen_folds = set()
     test_groups = defaultdict(lambda: defaultdict(int))
@@ -168,7 +168,6 @@ def test_uneven():
         for group in range(n_groups):
             assert test_groups[repeat_ix][group] == 1   
 
-
 def test_error_handling():
     groups = np.array([1, 1, 2, 2, 3, 3, 4, 4])
     X = np.ones(len(groups))
@@ -183,3 +182,55 @@ def test_error_handling():
     with pytest.raises(ValueError):
         cv = RepeatedUniqueFoldGroupKFold(n_splits=2, n_repeats=10)
         list(cv.split(X, y, groups))
+
+def test_correlation():
+    fold_size = 5
+    groups = np.arange(60) // fold_size
+    n_groups = len(np.unique(groups))
+    n_splits = n_groups // fold_size
+    n_repeats = 50
+    X = np.ones(len(groups))
+    y = np.ones(len(groups))
+    cv = RepeatedUniqueFoldGroupKFold(n_splits=n_splits, n_repeats=n_repeats)
+
+    count_mat = np.zeros((n_groups, n_groups), dtype=int)
+    for split_ix, (train_index, test_index) in enumerate(cv.split(X, y, groups)):
+        fold_test_groups = np.unique(groups[test_index])
+
+        # each pair to count mat
+        pairs = combinations(fold_test_groups, 2)
+        for pair in pairs:
+            count_mat[pair] += 1
+
+    stat, p = chi_square_test_upper_triangular(count_mat)
+    print(count_mat)
+    print(stat, p)
+    assert p > .5
+
+
+
+def chi_square_test_upper_triangular(M):
+    """
+    Performs a chi-square goodness-of-fit test on the counts of element pairs
+    from an upper triangular matrix, where M[i, j] represents the count of 
+    times element i and element j have appeared together.
+    
+    Args:
+    - M (numpy.ndarray): An upper triangular matrix of pair appearance counts.
+    
+    Returns:
+    - chi2_stat (float): The chi-square statistic.
+    - p_value (float): The p-value of the test.
+    """
+    # Flatten the matrix to get the observed frequencies, ignoring zeros and the diagonal
+    observed_frequencies = M[np.triu_indices_from(M, k=1)]
+    
+    # Calculate the expected frequency
+    total_appearances = observed_frequencies.sum()
+    num_pairs = len(observed_frequencies)
+    expected_frequency = total_appearances / num_pairs if num_pairs > 0 else 0
+
+    # Perform the chi-square goodness-of-fit test
+    chi2_stat, p_value = chisquare(observed_frequencies, [expected_frequency] * num_pairs) if num_pairs > 0 else (np.nan, np.nan)
+    
+    return chi2_stat, p_value
