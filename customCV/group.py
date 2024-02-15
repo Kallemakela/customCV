@@ -159,14 +159,13 @@ class RepeatedUniqueFoldGroupKFold:
         groups_per_fold[:n_groups % self.n_splits] += 1
 
         # Check if there are enough unique combinations for the smallest group
-        min_group_count = np.min(groups_per_fold)
-        n_min_groups = np.sum(groups_per_fold == min_group_count)
-        min_group_combinations = comb(n_groups, min_group_count, exact=True)
+        smallest_fold_size = np.min(groups_per_fold)
+        n_smallest_folds = np.sum(groups_per_fold == smallest_fold_size)
+        smallest_fold_combinations = comb(n_groups, smallest_fold_size, exact=True)
         
         # Ensure there are enough combinations to form unique folds for each repeat
-        if min_group_combinations < self.n_repeats * n_min_groups:
-            print(f"{min_group_combinations=} >= {self.n_repeats*n_min_groups=}")
-            raise ValueError("Not enough unique folds for the requested number of repeats.")
+        if smallest_fold_combinations < self.n_repeats * n_smallest_folds:
+            raise ValueError(f"Not enough unique folds for the requested number of repeats. Combnations (for the smallest fold size)={smallest_fold_combinations} < {self.n_repeats*n_smallest_folds=}.")
         
         used_folds = set()
         for ri in range(self.n_repeats):
