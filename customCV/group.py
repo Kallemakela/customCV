@@ -1,4 +1,5 @@
 import numpy as np
+import random
 from sklearn.model_selection._split import _RepeatedSplits
 from sklearn.model_selection import GroupShuffleSplit, GroupKFold
 from scipy.special import comb
@@ -54,6 +55,19 @@ class RepeatedGroupKfold(_RepeatedSplits):
     def __init__(self, **kwargs):
         super().__init__(RandomGroupKfold, **kwargs)
 
+def unique_random_combinations(iterable, r, rng):
+    """A generator that yields unique random combinations of length r from the iterable."""
+    seen = set()
+    items = list(iterable)
+    total_combinations = comb(len(items), r, exact=True)
+    
+    while len(seen) < total_combinations:
+        c = rng.sample(items, r)
+        combination = tuple(sorted(c))
+        hashed_combination = hash(combination)
+        if hashed_combination not in seen:
+            seen.add(hashed_combination)
+            yield combination
 
 class RepeatedUniqueFoldGroupKFold:
     """
@@ -72,56 +86,64 @@ class RepeatedUniqueFoldGroupKFold:
     random_state (int, RandomState instance or None, optional): random seed
     """
 
-    def __init__(self, n_splits=5, n_repeats=10, random_state=42):
+    def __init__(self, n_splits=5, n_repeats=10, random_state=42, max_iter=int(1e6)):
         self.n_splits = n_splits
         self.n_repeats = n_repeats
         self.random_state = random_state
-        self.random_group_map = None
+        self.max_iter = max_iter
 
         if random_state == None:
             print(f"Warning: With random_state=None Some groups might be more likely to appear in the same split.")
+            self.rng = None
+        else:
+            self.rng = random.Random(random_state)
 
-    def find_next_fold_(self, available_groups, fold_size, used_folds, exhausted=[]):
-            fold_gen = combinations(available_groups, fold_size)
-            while True:
-                try:
-                    fold = tuple(sorted(next(fold_gen)))
-                    if self.random_group_map is not None:
-                        fold = tuple(sorted(self.random_group_map[g] for g in fold))
-                    if fold not in used_folds and fold not in exhausted:
-                        return fold
-                except StopIteration:
-                    return None
+    def comb_generator(self, iterable, r):
+        if self.rng is not None:
+            return unique_random_combinations(iterable, r, self.rng)
+        else:
+            return combinations(iterable, r)
+
+    def find_next_fold_(self, available_groups, fold_size, used_folds, current_fold_path, exhausted_paths):
+        fold_gen = self.comb_generator(available_groups, fold_size)
+        while True:
+            try:
+                fold = tuple(sorted(next(fold_gen)))
+                potential_path = tuple(current_fold_path + [fold])
+                if fold not in used_folds and potential_path not in exhausted_paths:
+                    return fold
+            except StopIteration:
+                return None
                 
     def find_next_folds_(self, unique_groups, groups_per_fold, used_folds):
-            potential_folds = []
-            available_groups = unique_groups.copy()
+        current_fold_path = [] # folds that are currently being considered form a path, e.g. fold 1 -> fold 2 -> fold 3
+        available_groups = set(unique_groups)
+        exhausted_paths = set()
+        i = 0
+        while len(current_fold_path) < self.n_splits:
+            fold_ix = len(current_fold_path)
+            fold_size = groups_per_fold[fold_ix]
+            # exhausted in current branch
+            next_fold = self.find_next_fold_(available_groups, fold_size, used_folds, current_fold_path, exhausted_paths)
 
-            while len(potential_folds) < self.n_splits:
-                exhausted = []
-                fold_ix = len(potential_folds)
-                fold_size = groups_per_fold[fold_ix]
-                next_fold = self.find_next_fold_(available_groups, fold_size, used_folds, exhausted)
-                if next_fold is None:
-                    if len(potential_folds) == 0:
-                        raise ValueError("The 'groups' parameter contains too few unique groups to create folds.")
-                    exhausted_fold = potential_folds.pop()
-                    exhausted.append(exhausted_fold)
-                    
-                    if self.random_group_map is not None:
-                        exhausted = tuple(sorted(self.random_group_map_inv[g] for g in exhausted_fold))
+            if next_fold is None:
+                if len(current_fold_path) == 0:
+                    raise ValueError("The 'groups' parameter contains too few unique groups to create folds.")
 
-                    available_groups = np.concatenate([available_groups, exhausted_fold])
-                else:
-                    potential_folds.append(next_fold)
-                    
-                    if self.random_group_map is not None:
-                        next_fold = tuple(sorted(self.random_group_map_inv[g] for g in next_fold))
+                exhausted_paths.add(tuple(current_fold_path))
+                exhausted_fold = current_fold_path.pop()
+                available_groups.update(exhausted_fold)
 
-                    available_groups = np.setdiff1d(available_groups, next_fold)
-            
-            used_folds.update(potential_folds)
-            return potential_folds
+                i += 1 # only update i if we backtrack
+                if i > self.max_iter:
+                    raise ValueError("Max iterations reached.")
+
+            else:
+                current_fold_path.append(next_fold)
+                available_groups -= set(next_fold)
+        
+        used_folds.update(current_fold_path)
+        return current_fold_path
 
     def split(self, X, y=None, groups=None):
         if groups is None:
@@ -148,13 +170,6 @@ class RepeatedUniqueFoldGroupKFold:
         
         used_folds = set()
         for ri in range(self.n_repeats):
-
-			# generate new random mapping on each iteration to avoid appearance correlations between groups
-            if self.random_state is not None:
-                rng = np.random.default_rng(self.random_state + ri)
-                self.random_group_map = dict(zip(unique_groups, rng.permutation(unique_groups)))
-                self.random_group_map_inv = {v: k for k, v in self.random_group_map.items()}
-
             folds = self.find_next_folds_(unique_groups, groups_per_fold, used_folds)
             for fold in folds:
                 test_idx = np.isin(groups, fold)

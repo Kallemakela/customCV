@@ -14,15 +14,16 @@ from itertools import combinations, chain
 from customCV.group import RepeatedUniqueFoldGroupKFold
 
 # #%%
-xsize = 10000
-n_subjects = 31
+xsize = 348
+n_subjects = 8
 k = n_subjects // 2
-n_repeats = 2
+n_repeats = 7
 
 cross_cv = RepeatedUniqueFoldGroupKFold(
     n_splits=k,
     n_repeats=n_repeats,
-    random_state=1,
+    random_state=0,
+    max_iter=100
 )
 
 Xc = np.arange(xsize)
@@ -48,7 +49,14 @@ for split_ix, (train_ix, test_ix) in enumerate(cross_cv.split(Xc, yc, subject_id
 for s in np.unique(subject_ids):
     trs = train_count[s]
     ts = test_count[s]
-    # print(f'{s} {trs=} {ts=}')
+    print(f'{s} {trs=} {ts=}')
     if ts != n_repeats and trs != n_repeats * (k-1):
+        print(f"{s} should be in test {n_repeats=} times and in train {n_repeats*(k-1)=} times")
         print(f'{s} {trs=} {ts=}')
 # %%
+groups = np.arange(8) // 2
+X = np.ones(len(groups))
+y = np.ones(len(groups))
+cv_1 = RepeatedUniqueFoldGroupKFold(n_splits=2, n_repeats=3, random_state=1)
+splits_1 = list(cv_1.split(X, y, groups))
+splits_1
