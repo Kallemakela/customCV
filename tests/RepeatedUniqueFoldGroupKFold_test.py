@@ -207,8 +207,6 @@ def test_correlation():
     print(stat, p)
     assert p > .5
 
-
-
 def chi_square_test_upper_triangular(M):
     """
     Performs a chi-square goodness-of-fit test on the counts of element pairs
