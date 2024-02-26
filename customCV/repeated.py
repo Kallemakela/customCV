@@ -21,6 +21,9 @@ class RepeatedUniqueFoldKFold:
     n_splits (int): Number of folds. Must be at least 2.
     n_repeats (int): Number of times cross-validator needs to be repeated.
     random_state (int, RandomState instance or None, optional): random seed
+
+    The fold search is performed in a depth-first manner, by first finding a unique fold from groups that have not yet been used on this repeat, adding it to a list of potential folds, and moving on to the next fold.
+    If the fold search ends up in a situation where it is not possible to generate valid folds from the remaining groups, it backtracks by one fold and marks the backtracked fold as exhausted.
     """
     def __init__(self, n_splits=5, n_repeats=10, random_state=42, max_iter=int(1e6)):
         self.n_splits = n_splits
@@ -86,3 +89,54 @@ class RepeatedUniqueFoldKFold:
                 test_idx = np.array(fold)
                 train_idx = np.array([i for i in range(n_samples) if i not in fold])
                 yield train_idx, test_idx
+
+class RepeatedUniqueFoldKFoldPG(RepeatedUniqueFoldKFold):
+    def __init__(self, n_splits=5, n_repeats=10, random_state=42, max_iter=int(1e6), verbose=0):
+        super().__init__(n_splits, n_repeats, random_state, max_iter)
+        self.pre_generated_folds = []
+        self.max_resets = 10
+        self.verbose = verbose
+
+    def pre_generate_folds(self, n_samples):
+        """
+        Pre-generates all the folds for the repeats and stores them.
+        If it fails to generate unique folds, it resets and tries again from the beginning.
+        """
+        samples_per_fold = np.full(self.n_splits, n_samples // self.n_splits, dtype=int)
+        samples_per_fold[:n_samples % self.n_splits] += 1
+
+        used_folds = set()
+        attempt = 0
+
+        while len(self.pre_generated_folds) < self.n_splits * self.n_repeats:
+            try:
+                folds = self.find_next_folds_(n_samples, samples_per_fold, used_folds)
+                self.pre_generated_folds.extend(folds)
+            except ValueError as e:
+                # Reset everything and try again if unique folds cannot be generated
+                if str(e) == "Not enough samples to create unique folds.":
+                    self.pre_generated_folds.clear()
+                    used_folds.clear()
+                    attempt += 1
+                    if self.verbose > 0:
+                        print(f"Unique fold generation reached a dead end. Resetting and trying again. Attempt {attempt}/{self.max_resets}")
+                    if attempt >= self.max_resets:
+                        raise ValueError("max_resets reached. Cannot generate unique folds.")
+                else:
+                    raise  # If the error is not about unique fold generation, re-raise it
+
+
+    def split(self, X, y=None, groups=None):
+        n_samples = X.shape[0]
+        if n_samples < self.n_splits:
+            raise ValueError("Number of samples must be at least equal to n_splits.")
+
+        # Pre-generate folds if not already done
+        if not self.pre_generated_folds:
+            self.pre_generate_folds(n_samples)
+
+        # Yield pre-generated fold indices
+        for fold in self.pre_generated_folds:
+            test_idx = np.array(fold)
+            train_idx = np.array([i for i in range(n_samples) if i not in fold])
+            yield train_idx, test_idx

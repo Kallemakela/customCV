@@ -11,31 +11,29 @@ from itertools import combinations
 
 import numpy as np
 from itertools import combinations, chain
-from customCV.group import RepeatedUniqueFoldGroupKFold
+from customCV.repeated import RepeatedUniqueFoldKFold,RepeatedUniqueFoldKFoldPG 
 
 # #%%
-xsize = 348
 n_subjects = 8
 k = n_subjects // 2
 n_repeats = 7
 
-cross_cv = RepeatedUniqueFoldGroupKFold(
+cross_cv = RepeatedUniqueFoldKFold(
     n_splits=k,
     n_repeats=n_repeats,
     random_state=0,
     max_iter=100
 )
 
-Xc = np.arange(xsize)
-yc = np.arange(xsize)
-subject_ids = np.random.randint(0, n_subjects, size=xsize)
+Xc = np.arange(n_subjects)
+yc = np.arange(n_subjects)
 
 train_count = defaultdict(int)
 test_count = defaultdict(int)
-for split_ix, (train_ix, test_ix) in enumerate(cross_cv.split(Xc, yc, subject_ids)):
+for split_ix, (train_ix, test_ix) in enumerate(cross_cv.split(Xc, yc)):
     repeat_ix = split_ix // k
-    train_subjects = np.unique(subject_ids[train_ix])
-    test_subjects = np.unique(subject_ids[test_ix])
+    train_subjects = Xc[train_ix]
+    test_subjects = Xc[test_ix]
     # print(f'{split_ix:5d} {len(train_subjects)=}, {len(test_subjects)=}')
     print(f'{list(test_subjects)}')#, {list(train_subjects)}')
     for subject in train_subjects:
@@ -46,7 +44,7 @@ for split_ix, (train_ix, test_ix) in enumerate(cross_cv.split(Xc, yc, subject_id
     if split_ix % k == k-1:
         print()
 
-for s in np.unique(subject_ids):
+for s in np.unique(Xc):
     trs = train_count[s]
     ts = test_count[s]
     print(f'{s} {trs=} {ts=}')
@@ -54,18 +52,18 @@ for s in np.unique(subject_ids):
         print(f"{s} should be in test {n_repeats=} times and in train {n_repeats*(k-1)=} times")
         print(f'{s} {trs=} {ts=}')
 # %%
-groups = np.arange(12) // 2
+groups = np.arange(8)
 X = np.ones(len(groups))
 y = np.ones(len(groups))
 seeds = [
-    # 3,
-    11,
+    21
 ]
 from itertools import combinations
 for seed in seeds:
-    cv = RepeatedUniqueFoldGroupKFold(n_splits=3, n_repeats=5, random_state=seed)
+    cv = RepeatedUniqueFoldKFoldPG(n_splits=4, n_repeats=7, random_state=seed, verbose=1)
     print(f'{seed=}')
     all_possible_folds = list(combinations(range(len(set(groups))), 2))
     cv.all_possible_folds = all_possible_folds
-    splits = list(cv.split(X, y, groups))
-#%%
+    splits = list(cv.split(X, y))
+
+# %%

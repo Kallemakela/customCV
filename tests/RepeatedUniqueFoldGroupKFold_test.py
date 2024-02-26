@@ -3,17 +3,18 @@ import pytest
 from collections import defaultdict
 from itertools import combinations
 from scipy.stats import chisquare
-from customCV.group import RepeatedUniqueFoldGroupKFold
+from customCV.group import RepeatedUniqueFoldGroupKFoldPG, RepeatedUniqueFoldGroupKFold
 
-
-def test_initialization():
+@pytest.mark.parametrize("CVClass", [RepeatedUniqueFoldGroupKFold, RepeatedUniqueFoldGroupKFoldPG])
+def test_initialization(CVClass):
     # Test initialization
     cv = RepeatedUniqueFoldGroupKFold(n_splits=4, n_repeats=3)
     assert cv.n_splits == 4
     assert cv.n_repeats == 3
     assert cv.random_state == 42
 
-def test_split_functionality():
+@pytest.mark.parametrize("CVClass", [RepeatedUniqueFoldGroupKFold, RepeatedUniqueFoldGroupKFoldPG])
+def test_split_functionality(CVClass):
     groups = np.array([1, 1, 2, 2, 3, 3, 4, 4, 5, 5])
     n_groups = len(np.unique(groups))
     n_repeats = 3
@@ -40,8 +41,9 @@ def test_split_functionality():
     for repeat_ix in range(n_repeats):
         for group in range(1, n_groups + 1):
             assert test_groups[repeat_ix][group] == 1    
-        
-def test_unique_folds_across_repeats():
+
+@pytest.mark.parametrize("CVClass", [RepeatedUniqueFoldGroupKFold, RepeatedUniqueFoldGroupKFoldPG])       
+def test_unique_folds_across_repeats(CVClass):
     groups = np.arange(8) // 2
     X = np.ones(len(groups))
     y = np.ones(len(groups))
@@ -53,7 +55,8 @@ def test_unique_folds_across_repeats():
         assert fold not in seen_folds
         seen_folds.add(fold)
 
-def test_random_state():
+@pytest.mark.parametrize("CVClass", [RepeatedUniqueFoldGroupKFold, RepeatedUniqueFoldGroupKFoldPG])
+def test_random_state(CVClass):
     groups = np.arange(8) // 2
     X = np.ones(len(groups))
     y = np.ones(len(groups))
@@ -66,7 +69,8 @@ def test_random_state():
     split_equal = [np.array_equal(splits_0[i][0], splits_1[i][0]) for i in range(len(splits_0))]
     assert not all(split_equal)
 
-def test_exhaustion():
+@pytest.mark.parametrize("CVClass", [RepeatedUniqueFoldGroupKFold, RepeatedUniqueFoldGroupKFoldPG])
+def test_exhaustion(CVClass):
     fold_size = 2
     groups = np.arange(40) // fold_size
     n_groups = len(np.unique(groups))
@@ -100,7 +104,8 @@ def test_exhaustion():
         for group in range(n_groups):
             assert test_groups[repeat_ix][group] == 1   
 
-def test_exhaustion_random():
+@pytest.mark.parametrize("CVClass", [RepeatedUniqueFoldGroupKFold, RepeatedUniqueFoldGroupKFoldPG])
+def test_exhaustion_random(CVClass):
     fold_size = 2
     groups = np.arange(40) // fold_size
     n_groups = len(np.unique(groups))
@@ -135,7 +140,8 @@ def test_exhaustion_random():
         for group in range(n_groups):
             assert test_groups[repeat_ix][group] == 1   
 
-def test_uneven():
+@pytest.mark.parametrize("CVClass", [RepeatedUniqueFoldGroupKFold, RepeatedUniqueFoldGroupKFoldPG])
+def test_uneven(CVClass):
     groups = np.array([0,0,0,1,1,2,2,3,3])
     n_groups = len(np.unique(groups))
     n_splits = 2
@@ -168,7 +174,8 @@ def test_uneven():
         for group in range(n_groups):
             assert test_groups[repeat_ix][group] == 1   
 
-def test_error_handling():
+@pytest.mark.parametrize("CVClass", [RepeatedUniqueFoldGroupKFold, RepeatedUniqueFoldGroupKFoldPG])
+def test_error_handling(CVClass):
     groups = np.array([1, 1, 2, 2, 3, 3, 4, 4])
     X = np.ones(len(groups))
     y = np.ones(len(groups))
@@ -183,7 +190,8 @@ def test_error_handling():
         cv = RepeatedUniqueFoldGroupKFold(n_splits=2, n_repeats=10)
         list(cv.split(X, y, groups))
 
-def test_correlation():
+@pytest.mark.parametrize("CVClass", [RepeatedUniqueFoldGroupKFold, RepeatedUniqueFoldGroupKFoldPG])
+def test_correlation(CVClass):
     fold_size = 5
     groups = np.arange(60) // fold_size
     n_groups = len(np.unique(groups))
