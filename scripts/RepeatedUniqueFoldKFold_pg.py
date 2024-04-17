@@ -61,6 +61,7 @@ seeds = [
 from itertools import combinations
 for seed in seeds:
     cv = RepeatedUniqueFoldKFoldPG(n_splits=4, n_repeats=7, random_state=seed, verbose=1)
+    # cv = RepeatedUniqueFoldKFold(n_splits=4, n_repeats=7, random_state=seed, verbose=1)
     print(f'{seed=}')
     all_possible_folds = list(combinations(range(len(set(groups))), 2))
     cv.all_possible_folds = all_possible_folds

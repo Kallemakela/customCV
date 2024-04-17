@@ -25,12 +25,16 @@ class RepeatedUniqueFoldKFold:
     The fold search is performed in a depth-first manner, by first finding a unique fold from groups that have not yet been used on this repeat, adding it to a list of potential folds, and moving on to the next fold.
     If the fold search ends up in a situation where it is not possible to generate valid folds from the remaining groups, it backtracks by one fold and marks the backtracked fold as exhausted.
     """
-    def __init__(self, n_splits=5, n_repeats=10, random_state=42, max_iter=int(1e6)):
+    def __init__(self, n_splits=5, n_repeats=10, random_state=42, max_iter=int(1e6), verbose=0, warn=True):
         self.n_splits = n_splits
         self.n_repeats = n_repeats
         self.random_state = random_state
         self.max_iter = max_iter
         self.rng = np.random.default_rng(random_state)
+        self.verbose = verbose
+
+        if warn:
+            print("Warning: This class generates folds dynamically and may get stuck in a dead end. Use RepeatedUniqueFoldKFoldPG for a more robust version. Silence this warning by setting warn=False.")
 
     def comb_generator(self, iterable, r):
         return unique_random_combinations(iterable, r, self.rng)
@@ -91,8 +95,13 @@ class RepeatedUniqueFoldKFold:
                 yield train_idx, test_idx
 
 class RepeatedUniqueFoldKFoldPG(RepeatedUniqueFoldKFold):
+    """
+    Pre-generated version of RepeatedUniqueFoldKFold. Recommended if computationally feasible, because it can't get stuck in a dead end.
+
+    Pre-generates all folds for all repeats and stores them. If it fails to generate unique folds, it resets and tries again from the beginning.
+    """
     def __init__(self, n_splits=5, n_repeats=10, random_state=42, max_iter=int(1e6), verbose=0):
-        super().__init__(n_splits, n_repeats, random_state, max_iter)
+        super().__init__(n_splits, n_repeats, random_state, max_iter, verbose, warn=False)
         self.pre_generated_folds = []
         self.max_resets = 10
         self.verbose = verbose
