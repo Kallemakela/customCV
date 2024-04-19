@@ -109,9 +109,9 @@ class GroupCVWrapper:
 
 class RepeatedUniqueFoldGroupKFold:
     """Group extension of RepeatedUniqueFoldKFold"""
-    def __init__(self, n_splits=5, n_repeats=10, random_state=42, max_iter=int(1e6)):
+    def __init__(self, n_splits=5, n_repeats=10, random_state=42, max_iter=int(1e6), **kwargs):
         self.n_splits, self.n_repeats, self.random_state, self.max_iter = n_splits, n_repeats, random_state, max_iter
-        self.base_cv = RepeatedUniqueFoldKFold(n_splits, n_repeats, random_state, max_iter)
+        self.base_cv = RepeatedUniqueFoldKFold(n_splits, n_repeats, random_state, max_iter, **kwargs)
         self.wrapper = GroupCVWrapper(self.base_cv)
 
     def split(self, X, y=None, groups=None):
@@ -119,9 +119,9 @@ class RepeatedUniqueFoldGroupKFold:
         
 class RepeatedUniqueFoldGroupKFoldPG:
     """Group extension of RepeatedUniqueFoldKFoldPG"""
-    def __init__(self, n_splits=5, n_repeats=10, random_state=42, max_iter=int(1e6)):
+    def __init__(self, n_splits=5, n_repeats=10, random_state=42, max_iter=int(1e6), **kwargs):
         self.n_splits, self.n_repeats, self.random_state, self.max_iter = n_splits, n_repeats, random_state, max_iter
-        self.base_cv = RepeatedUniqueFoldKFoldPG(n_splits, n_repeats, random_state, max_iter)
+        self.base_cv = RepeatedUniqueFoldKFoldPG(n_splits, n_repeats, random_state, max_iter, **kwargs)
         self.wrapper = GroupCVWrapper(self.base_cv)
 
     def split(self, X, y=None, groups=None):
