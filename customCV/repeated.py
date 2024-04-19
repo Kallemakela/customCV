@@ -123,7 +123,7 @@ class RepeatedUniqueFoldKFoldPG(RepeatedUniqueFoldKFold):
                 self.pre_generated_folds.extend(folds)
             except ValueError as e:
                 # Reset everything and try again if unique folds cannot be generated
-                if str(e) == "Not enough samples to create unique folds.":
+                if str(e) == "Not enough samples to create unique folds." or str(e) == "Max iterations reached.":
                     self.pre_generated_folds.clear()
                     used_folds.clear()
                     attempt += 1
