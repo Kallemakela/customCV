@@ -7,26 +7,32 @@ from scipy.special import comb
 from itertools import combinations
 from customCV.repeated import RepeatedUniqueFoldKFold, RepeatedUniqueFoldKFoldPG
 
+
 class GroupShuffleSplit_(GroupShuffleSplit):
     """GroupShuffleSplit that accepts the shuffle parameter in the constructor so that it can be used with _RepeatedSplits"""
+
     def __init__(self, shuffle=True, **kwargs):
         super().__init__(**kwargs)
         self.shuffle = shuffle
 
+
 class RepeatedGroupShuffleSplit(_RepeatedSplits):
     """
-    Randomized group CV iterator with possible overlap. 
+    Randomized group CV iterator with possible overlap.
     """
+
     def __init__(self, **kwargs):
         super().__init__(GroupShuffleSplit_, **kwargs)
 
+
 class RandomGroupKfold(GroupKFold):
     """GroupKFold that accepts the shuffle parameter. Ignores group sizes."""
+
     def __init__(self, shuffle=True, random_state=None, **kwargs):
         super().__init__(**kwargs)
         self.shuffle = shuffle
         self.random_state = random_state
-        
+
         if isinstance(self.random_state, int):
             self.rng = np.random.default_rng(random_state)
         elif isinstance(self.random_state, np.random.RandomState):
@@ -50,22 +56,35 @@ class RandomGroupKfold(GroupKFold):
         for f in range(self.n_splits):
             yield np.where(indices == f)[0]
 
+
 class RepeatedGroupKfold(_RepeatedSplits):
     """
     Repeated group CV iterator with no overlap (per repeat).
     """
+
     def __init__(self, **kwargs):
         super().__init__(RandomGroupKfold, **kwargs)
 
-class GroupCVWrapper:
-    def __init__(self, base_cv):
-        """
-        Wraps a non-group cross-validator to make it group-aware.
 
-        Parameters:
-        - base_cv: The non-group KFold cross-validator instance from scikit-learn.
-        - random_state: Random state for reproducibility, if applicable to the base_cv.
-        """
+class GroupCVWrapper:
+    """
+    Transforms a cross validator to split groups instead of sample indices.
+
+    Parameters:
+    - base_cv: The non-group KFold cross-validator instance from scikit-learn.
+    - random_state: Random state for reproducibility, if applicable to the base_cv.
+
+    Example:
+    ```
+    groups = [0,0,1,0]
+    cv = KFold(k=2)
+    cv.split(groups=groups)
+    > [2] [0 1 3]
+    > [0 1 3] [2]
+    ```
+    """
+
+    def __init__(self, base_cv):
         self.base_cv = base_cv
 
     def _groups_to_indices(self, groups):
@@ -75,7 +94,7 @@ class GroupCVWrapper:
             group_indices[group].append(index)
         return group_indices
 
-    def split(self, X, y=None, groups=None):
+    def split(self, X=None, y=None, groups=None):
         """
         Generate indices to split data into training and test sets, ensuring that
         samples from the same group are not split across folds.
@@ -102,28 +121,52 @@ class GroupCVWrapper:
         # Generate splits using the base_cv on the pseudo-X,
         # then map back to original indices.
         for train_groups_idx, test_groups_idx in self.base_cv.split(pseudo_X):
-            train_idx = np.concatenate([group_indices[unique_groups[i]] for i in train_groups_idx])
-            test_idx = np.concatenate([group_indices[unique_groups[i]] for i in test_groups_idx])
+            train_idx = np.concatenate(
+                [group_indices[unique_groups[i]] for i in train_groups_idx]
+            )
+            test_idx = np.concatenate(
+                [group_indices[unique_groups[i]] for i in test_groups_idx]
+            )
             yield train_idx, test_idx
 
 
 class RepeatedUniqueFoldGroupKFold:
     """Group extension of RepeatedUniqueFoldKFold"""
-    def __init__(self, n_splits=5, n_repeats=10, random_state=42, max_iter=int(1e6), **kwargs):
-        self.n_splits, self.n_repeats, self.random_state, self.max_iter = n_splits, n_repeats, random_state, max_iter
-        self.base_cv = RepeatedUniqueFoldKFold(n_splits, n_repeats, random_state, max_iter, **kwargs)
+
+    def __init__(
+        self, n_splits=5, n_repeats=10, random_state=42, max_iter=int(1e6), **kwargs
+    ):
+        self.n_splits, self.n_repeats, self.random_state, self.max_iter = (
+            n_splits,
+            n_repeats,
+            random_state,
+            max_iter,
+        )
+        self.base_cv = RepeatedUniqueFoldKFold(
+            n_splits, n_repeats, random_state, max_iter, **kwargs
+        )
         self.wrapper = GroupCVWrapper(self.base_cv)
 
     def split(self, X, y=None, groups=None):
         return self.wrapper.split(X, y, groups)
-        
+
+
 class RepeatedUniqueFoldGroupKFoldPG:
     """Group extension of RepeatedUniqueFoldKFoldPG"""
-    def __init__(self, n_splits=5, n_repeats=10, random_state=42, max_iter=int(1e6), **kwargs):
-        self.n_splits, self.n_repeats, self.random_state, self.max_iter = n_splits, n_repeats, random_state, max_iter
-        self.base_cv = RepeatedUniqueFoldKFoldPG(n_splits, n_repeats, random_state, max_iter, **kwargs)
+
+    def __init__(
+        self, n_splits=5, n_repeats=10, random_state=42, max_iter=int(1e6), **kwargs
+    ):
+        self.n_splits, self.n_repeats, self.random_state, self.max_iter = (
+            n_splits,
+            n_repeats,
+            random_state,
+            max_iter,
+        )
+        self.base_cv = RepeatedUniqueFoldKFoldPG(
+            n_splits, n_repeats, random_state, max_iter, **kwargs
+        )
         self.wrapper = GroupCVWrapper(self.base_cv)
 
     def split(self, X, y=None, groups=None):
         return self.wrapper.split(X, y, groups)
-
