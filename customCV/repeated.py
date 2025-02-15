@@ -3,14 +3,17 @@ import random
 from itertools import combinations
 from scipy.special import comb
 
-def unique_random_combinations(iterable, r, rng):
+
+def unique_random_combinations(iterable, r, rng=None):
     """Generate unique random combinations."""
     pool = tuple(iterable)
     n = len(pool)
     indices = list(range(n))
-    rng.shuffle(indices)
+    if rng is not None:
+        rng.shuffle(indices)
     for i in combinations(indices, r):
         yield tuple(sorted(pool[j] for j in i))
+
 
 class RepeatedUniqueFoldKFold:
     """
@@ -25,21 +28,42 @@ class RepeatedUniqueFoldKFold:
     The fold search is performed in a depth-first manner, by first finding a unique fold from groups that have not yet been used on this repeat, adding it to a list of potential folds, and moving on to the next fold.
     If the fold search ends up in a situation where it is not possible to generate valid folds from the remaining groups, it backtracks by one fold and marks the backtracked fold as exhausted.
     """
-    def __init__(self, n_splits=5, n_repeats=10, random_state=42, max_iter=int(1e6), verbose=0, warn=True):
+
+    def __init__(
+        self,
+        n_splits=5,
+        n_repeats=10,
+        random_state=42,
+        max_iter=int(1e6),
+        verbose=0,
+        warn=True,
+    ):
         self.n_splits = n_splits
         self.n_repeats = n_repeats
         self.random_state = random_state
         self.max_iter = max_iter
-        self.rng = np.random.default_rng(random_state)
+        if random_state is not None:
+            self.rng = np.random.default_rng(random_state)
+        else:
+            self.rng = None
         self.verbose = verbose
 
         if warn:
-            print("Warning: This class generates folds dynamically and may get stuck in a dead end. Use RepeatedUniqueFoldKFoldPG for a more robust version. Silence this warning by setting warn=False.")
+            print(
+                "Warning: This class generates folds dynamically and may get stuck in a dead end. Use RepeatedUniqueFoldKFoldPG for a more robust version. Silence this warning by setting warn=False."
+            )
 
     def comb_generator(self, iterable, r):
         return unique_random_combinations(iterable, r, self.rng)
 
-    def find_next_fold_(self, available_samples, fold_size, used_folds, current_fold_path, exhausted_paths):
+    def find_next_fold_(
+        self,
+        available_samples,
+        fold_size,
+        used_folds,
+        current_fold_path,
+        exhausted_paths,
+    ):
         fold_gen = self.comb_generator(available_samples, fold_size)
         while True:
             try:
@@ -58,7 +82,13 @@ class RepeatedUniqueFoldKFold:
         while len(current_fold_path) < self.n_splits:
             fold_ix = len(current_fold_path)
             fold_size = samples_per_fold[fold_ix]
-            next_fold = self.find_next_fold_(available_samples, fold_size, used_folds, current_fold_path, exhausted_paths)
+            next_fold = self.find_next_fold_(
+                available_samples,
+                fold_size,
+                used_folds,
+                current_fold_path,
+                exhausted_paths,
+            )
 
             if next_fold is None:
                 if len(current_fold_path) == 0:
@@ -73,7 +103,7 @@ class RepeatedUniqueFoldKFold:
             else:
                 current_fold_path.append(next_fold)
                 available_samples -= set(next_fold)
-        
+
         used_folds.update(current_fold_path)
         return current_fold_path
 
@@ -81,10 +111,10 @@ class RepeatedUniqueFoldKFold:
         n_samples = X.shape[0]
         if n_samples < self.n_splits:
             raise ValueError("Number of samples must be at least equal to n_splits.")
-        
+
         # Calculate the number of samples per fold
         samples_per_fold = np.full(self.n_splits, n_samples // self.n_splits, dtype=int)
-        samples_per_fold[:n_samples % self.n_splits] += 1
+        samples_per_fold[: n_samples % self.n_splits] += 1
 
         used_folds = set()
         for ri in range(self.n_repeats):
@@ -94,14 +124,20 @@ class RepeatedUniqueFoldKFold:
                 train_idx = np.array([i for i in range(n_samples) if i not in fold])
                 yield train_idx, test_idx
 
+
 class RepeatedUniqueFoldKFoldPG(RepeatedUniqueFoldKFold):
     """
     Pre-generated version of RepeatedUniqueFoldKFold. Recommended if computationally feasible, because it can't get stuck in a dead end.
 
     Pre-generates all folds for all repeats and stores them. If it fails to generate unique folds, it resets and tries again from the beginning.
     """
-    def __init__(self, n_splits=5, n_repeats=10, random_state=42, max_iter=int(1e6), verbose=0):
-        super().__init__(n_splits, n_repeats, random_state, max_iter, verbose, warn=False)
+
+    def __init__(
+        self, n_splits=5, n_repeats=10, random_state=42, max_iter=int(1e6), verbose=0
+    ):
+        super().__init__(
+            n_splits, n_repeats, random_state, max_iter, verbose, warn=False
+        )
         self.pre_generated_folds = []
         self.max_resets = 10
         self.verbose = verbose
@@ -112,7 +148,7 @@ class RepeatedUniqueFoldKFoldPG(RepeatedUniqueFoldKFold):
         If it fails to generate unique folds, it resets and tries again from the beginning.
         """
         samples_per_fold = np.full(self.n_splits, n_samples // self.n_splits, dtype=int)
-        samples_per_fold[:n_samples % self.n_splits] += 1
+        samples_per_fold[: n_samples % self.n_splits] += 1
 
         used_folds = set()
         attempt = 0
@@ -123,17 +159,23 @@ class RepeatedUniqueFoldKFoldPG(RepeatedUniqueFoldKFold):
                 self.pre_generated_folds.extend(folds)
             except ValueError as e:
                 # Reset everything and try again if unique folds cannot be generated
-                if str(e) == "Not enough samples to create unique folds." or str(e) == "Max iterations reached.":
+                if (
+                    str(e) == "Not enough samples to create unique folds."
+                    or str(e) == "Max iterations reached."
+                ):
                     self.pre_generated_folds.clear()
                     used_folds.clear()
                     attempt += 1
                     if self.verbose > 0:
-                        print(f"Unique fold generation reached a dead end. Resetting and trying again. Attempt {attempt}/{self.max_resets}")
+                        print(
+                            f"Unique fold generation reached a dead end. Resetting and trying again. Attempt {attempt}/{self.max_resets}"
+                        )
                     if attempt >= self.max_resets:
-                        raise ValueError("max_resets reached. Cannot generate unique folds.")
+                        raise ValueError(
+                            "max_resets reached. Cannot generate unique folds."
+                        )
                 else:
                     raise  # If the error is not about unique fold generation, re-raise it
-
 
     def split(self, X, y=None, groups=None):
         n_samples = X.shape[0]

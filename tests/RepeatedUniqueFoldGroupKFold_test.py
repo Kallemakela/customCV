@@ -233,7 +233,7 @@ def test_correlation(CVClass):
     n_repeats = 50
     X = np.ones(len(groups))
     y = np.ones(len(groups))
-    cv = RepeatedUniqueFoldGroupKFold(n_splits=n_splits, n_repeats=n_repeats)
+    cv = CVClass(n_splits=n_splits, n_repeats=n_repeats)
 
     count_mat = np.zeros((n_groups, n_groups), dtype=int)
     for split_ix, (train_index, test_index) in enumerate(cv.split(X, y, groups)):
@@ -248,6 +248,35 @@ def test_correlation(CVClass):
     print(count_mat)
     print(stat, p)
     assert p > 0.5
+
+
+@pytest.mark.parametrize(
+    "CVClass", [RepeatedUniqueFoldGroupKFold, RepeatedUniqueFoldGroupKFoldPG]
+)
+def test_correlation_inv(CVClass):
+    """Test that there is no correlation between samples appearing in the same test set, i.e. sample_x is not more likely to appear with sample_y than any other sample."""
+    fold_size = 5
+    groups = np.arange(60) // fold_size
+    n_groups = len(np.unique(groups))
+    n_splits = n_groups // fold_size
+    n_repeats = 50
+    X = np.ones(len(groups))
+    y = np.ones(len(groups))
+    cv = CVClass(n_splits=n_splits, n_repeats=n_repeats, random_state=None)
+
+    count_mat = np.zeros((n_groups, n_groups), dtype=int)
+    for split_ix, (train_index, test_index) in enumerate(cv.split(X, y, groups)):
+        fold_test_groups = np.unique(groups[test_index])
+
+        # each pair to count mat
+        pairs = combinations(fold_test_groups, 2)
+        for pair in pairs:
+            count_mat[pair] += 1
+
+    stat, p = chi_square_test_upper_triangular(count_mat)
+    print(count_mat)
+    print(stat, p)
+    assert p < 0.05
 
 
 def chi_square_test_upper_triangular(M):
