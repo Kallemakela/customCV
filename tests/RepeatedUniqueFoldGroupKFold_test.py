@@ -72,8 +72,8 @@ def test_random_state(CVClass):
     groups = np.arange(8) // 2
     X = np.ones(len(groups))
     y = np.ones(len(groups))
-    cv_0 = RepeatedUniqueFoldGroupKFold(n_splits=2, n_repeats=3, random_state=0)
-    cv_1 = RepeatedUniqueFoldGroupKFold(n_splits=2, n_repeats=3, random_state=1)
+    cv_0 = CVClass(n_splits=2, n_repeats=3, random_state=0)
+    cv_1 = CVClass(n_splits=2, n_repeats=3, random_state=1)
     splits_0 = list(cv_0.split(X, y, groups))
     splits_1 = list(cv_1.split(X, y, groups))
 
@@ -82,6 +82,16 @@ def test_random_state(CVClass):
         np.array_equal(splits_0[i][0], splits_1[i][0]) for i in range(len(splits_0))
     ]
     assert not all(split_equal)
+
+    # Check that the splits are the same when using the same random state
+    cv_00 = CVClass(n_splits=2, n_repeats=3, random_state=0)
+    splits_00 = list(cv_00.split(X, y, groups))
+    split_equal = [
+        np.array_equal(splits_0[i][0], splits_00[i][0])
+        and np.array_equal(splits_0[i][1], splits_00[i][1])
+        for i in range(len(splits_0))
+    ]
+    assert all(split_equal)
 
 
 @pytest.mark.parametrize(

@@ -127,6 +127,16 @@ def test_random_state(CVClass):
     ]
     assert not all(split_equal)
 
+    # Check that the splits are the same when using the same random state
+    cv_00 = CVClass(n_splits=2, n_repeats=3, random_state=0)
+    splits_00 = list(cv_00.split(X, y))
+    split_equal = [
+        np.array_equal(splits_0[i][0], splits_00[i][0])
+        and np.array_equal(splits_0[i][1], splits_00[i][1])
+        for i in range(len(splits_0))
+    ]
+    assert all(split_equal)
+
 
 def _test_exhaustion(CVClass, random_state):
     n_samples = 10
