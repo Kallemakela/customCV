@@ -82,52 +82,39 @@ def test_random_state(CVClass):
     assert not all(split_equal)
 
 
-@pytest.mark.parametrize(
-    "CVClass", [RepeatedUniqueFoldKFold, RepeatedUniqueFoldKFoldPG]
-)
-def test_exhaustion(CVClass):
-    n_samples = 40
-    n_splits = 4
-    n_repeats = 3
+def _test_exhaustion(CVClass, random_state):
+    n_samples = 10
+    n_splits = 5
+    n_repeats = 9
     X = np.arange(n_samples)
     y = np.ones(n_samples)
-    cv = CVClass(n_splits=n_splits, n_repeats=n_repeats, random_state=None)
+    cv = CVClass(n_splits=n_splits, n_repeats=n_repeats, random_state=random_state)
 
     seen_folds = set()
     for split_ix, (train_index, test_index) in enumerate(cv.split(X, y)):
-
-        # Check that the train and test indices are disjoint
         assert len(np.intersect1d(train_index, test_index)) == 0
-        # check that all samples are included in either train or test
         assert len(np.union1d(train_index, test_index)) == n_samples
-
         fold = tuple(sorted(test_index))
         assert fold not in seen_folds
         seen_folds.add(fold)
+
+    split_size = n_samples // n_splits
+    for comb in combinations(range(n_samples), split_size):
+        assert tuple(sorted(comb)) in seen_folds
+
+
+@pytest.mark.parametrize(
+    "CVClass", [RepeatedUniqueFoldKFold, RepeatedUniqueFoldKFoldPG]
+)
+def test_exhaustion_deterministic(CVClass):
+    _test_exhaustion(CVClass, random_state=None)
 
 
 @pytest.mark.parametrize(
     "CVClass", [RepeatedUniqueFoldKFold, RepeatedUniqueFoldKFoldPG]
 )
 def test_exhaustion_random(CVClass):
-    n_samples = 40
-    n_splits = 4
-    n_repeats = 3
-    X = np.arange(n_samples)
-    y = np.ones(n_samples)
-    cv = CVClass(n_splits=n_splits, n_repeats=n_repeats, random_state=0)
-
-    seen_folds = set()
-    for split_ix, (train_index, test_index) in enumerate(cv.split(X, y)):
-
-        # Check that the train and test indices are disjoint
-        assert len(np.intersect1d(train_index, test_index)) == 0
-        # check that all samples are included in either train or test
-        assert len(np.union1d(train_index, test_index)) == n_samples
-
-        fold = tuple(sorted(test_index))
-        assert fold not in seen_folds
-        seen_folds.add(fold)
+    _test_exhaustion(CVClass, random_state=42)
 
 
 @pytest.mark.parametrize(

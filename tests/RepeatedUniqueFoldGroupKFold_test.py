@@ -87,7 +87,8 @@ def test_random_state(CVClass):
 @pytest.mark.parametrize(
     "CVClass", [RepeatedUniqueFoldGroupKFold, RepeatedUniqueFoldGroupKFoldPG]
 )
-def test_exhaustion(CVClass):
+def test_repeat_completeness(CVClass):
+    """Tests that each group is in the test set exactly once per repeat."""
     fold_size = 2
     groups = np.arange(40) // fold_size
     n_groups = len(np.unique(groups))
@@ -127,7 +128,7 @@ def test_exhaustion(CVClass):
 @pytest.mark.parametrize(
     "CVClass", [RepeatedUniqueFoldGroupKFold, RepeatedUniqueFoldGroupKFoldPG]
 )
-def test_exhaustion_random(CVClass):
+def test_repeat_completeness_random(CVClass):
     fold_size = 2
     groups = np.arange(40) // fold_size
     n_groups = len(np.unique(groups))
@@ -163,6 +164,81 @@ def test_exhaustion_random(CVClass):
     for repeat_ix in range(n_repeats):
         for group in range(n_groups):
             assert test_groups[repeat_ix][group] == 1
+
+
+@pytest.mark.parametrize(
+    "CVClass", [RepeatedUniqueFoldGroupKFold, RepeatedUniqueFoldGroupKFoldPG]
+)
+def _test_exhaustion(CVClass):
+    fold_size = 2
+    groups = np.arange(20) // fold_size
+    n_groups = len(np.unique(groups))
+    n_splits = n_groups // fold_size
+    n_repeats = 9
+    X = np.ones(len(groups))
+    y = np.ones(len(groups))
+    cv = RepeatedUniqueFoldGroupKFold(
+        n_splits=n_splits, n_repeats=n_repeats, random_state=None
+    )
+
+    seen_folds = set()
+    seen_group_combs = set()
+    for split_ix, (train_index, test_index) in enumerate(cv.split(X, y, groups)):
+        assert len(np.intersect1d(train_index, test_index)) == 0
+        assert len(np.union1d(train_index, test_index)) == len(groups)
+        fold = tuple(sorted(test_index))
+        groups_in_fold = tuple(sorted(np.unique(groups[test_index])))
+        assert fold not in seen_folds
+        seen_folds.add(fold)
+        assert groups_in_fold not in seen_group_combs
+        seen_group_combs.add(groups_in_fold)
+
+    groups_per_fold = n_groups // n_splits
+    for comb in combinations(range(n_groups), groups_per_fold):
+        assert tuple(sorted(comb)) in seen_group_combs
+
+
+def _test_exhaustion(CVClass, random_state):
+    fold_size = 2
+    groups = np.arange(20) // fold_size
+    n_groups = len(np.unique(groups))
+    n_splits = n_groups // fold_size
+    n_repeats = 9
+    X = np.ones(len(groups))
+    y = np.ones(len(groups))
+    cv = RepeatedUniqueFoldGroupKFold(
+        n_splits=n_splits, n_repeats=n_repeats, random_state=random_state
+    )
+
+    seen_folds = set()
+    seen_group_combs = set()
+    for split_ix, (train_index, test_index) in enumerate(cv.split(X, y, groups)):
+        assert len(np.intersect1d(train_index, test_index)) == 0
+        assert len(np.union1d(train_index, test_index)) == len(groups)
+        fold = tuple(sorted(test_index))
+        groups_in_fold = tuple(sorted(np.unique(groups[test_index])))
+        assert fold not in seen_folds
+        seen_folds.add(fold)
+        assert groups_in_fold not in seen_group_combs
+        seen_group_combs.add(groups_in_fold)
+
+    groups_per_fold = n_groups // n_splits
+    for comb in combinations(range(n_groups), groups_per_fold):
+        assert tuple(sorted(comb)) in seen_group_combs
+
+
+@pytest.mark.parametrize(
+    "CVClass", [RepeatedUniqueFoldGroupKFold, RepeatedUniqueFoldGroupKFoldPG]
+)
+def test_exhaustion_deterministic(CVClass):
+    _test_exhaustion(CVClass, random_state=None)
+
+
+@pytest.mark.parametrize(
+    "CVClass", [RepeatedUniqueFoldGroupKFold, RepeatedUniqueFoldGroupKFoldPG]
+)
+def test_exhaustion_random(CVClass):
+    _test_exhaustion(CVClass, random_state=0)
 
 
 @pytest.mark.parametrize(
