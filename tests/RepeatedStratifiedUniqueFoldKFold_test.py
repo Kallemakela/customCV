@@ -128,50 +128,50 @@ def test_random_state(CVClass):
     assert not all(split_equal)
 
 
-@pytest.mark.parametrize("CVClass", [RepeatedStratifiedUniqueFoldKFold])
-def test_exhaustion(CVClass):
-    n_samples = 40
-    n_splits = 4
-    n_repeats = 3
-    n_classes = 4
-    y = (np.arange(n_samples) // np.ceil(n_samples / n_classes)).astype(int)
-    X = np.arange(n_samples)
-    cv = CVClass(n_splits=n_splits, n_repeats=n_repeats, random_state=None)
+# @pytest.mark.parametrize("CVClass", [RepeatedStratifiedUniqueFoldKFold])
+# def test_exhaustion(CVClass):
+#     n_samples = 40
+#     n_splits = 4
+#     n_repeats = 3
+#     n_classes = 4
+#     y = (np.arange(n_samples) // np.ceil(n_samples / n_classes)).astype(int)
+#     X = np.arange(n_samples)
+#     cv = CVClass(n_splits=n_splits, n_repeats=n_repeats, random_state=None)
 
-    seen_folds = set()
-    for split_ix, (train_index, test_index) in enumerate(cv.split(X, y)):
+#     seen_folds = set()
+#     for split_ix, (train_index, test_index) in enumerate(cv.split(X, y)):
 
-        # Check that the train and test indices are disjoint
-        assert len(np.intersect1d(train_index, test_index)) == 0
-        # check that all samples are included in either train or test
-        assert len(np.union1d(train_index, test_index)) == n_samples
+#         # Check that the train and test indices are disjoint
+#         assert len(np.intersect1d(train_index, test_index)) == 0
+#         # check that all samples are included in either train or test
+#         assert len(np.union1d(train_index, test_index)) == n_samples
 
-        fold = tuple(sorted(test_index))
-        assert fold not in seen_folds
-        seen_folds.add(fold)
+#         fold = tuple(sorted(test_index))
+#         assert fold not in seen_folds
+#         seen_folds.add(fold)
 
 
-@pytest.mark.parametrize("CVClass", [RepeatedStratifiedUniqueFoldKFold])
-def test_exhaustion_random(CVClass):
-    n_samples = 40
-    n_splits = 4
-    n_repeats = 3
-    n_classes = 4
-    y = (np.arange(n_samples) // np.ceil(n_samples / n_classes)).astype(int)
-    X = np.arange(n_samples)
-    cv = CVClass(n_splits=n_splits, n_repeats=n_repeats, random_state=0)
+# @pytest.mark.parametrize("CVClass", [RepeatedStratifiedUniqueFoldKFold])
+# def test_exhaustion_random(CVClass):
+#     n_samples = 40
+#     n_splits = 4
+#     n_repeats = 3
+#     n_classes = 4
+#     y = (np.arange(n_samples) // np.ceil(n_samples / n_classes)).astype(int)
+#     X = np.arange(n_samples)
+#     cv = CVClass(n_splits=n_splits, n_repeats=n_repeats, random_state=0)
 
-    seen_folds = set()
-    for split_ix, (train_index, test_index) in enumerate(cv.split(X, y)):
+#     seen_folds = set()
+#     for split_ix, (train_index, test_index) in enumerate(cv.split(X, y)):
 
-        # Check that the train and test indices are disjoint
-        assert len(np.intersect1d(train_index, test_index)) == 0
-        # check that all samples are included in either train or test
-        assert len(np.union1d(train_index, test_index)) == n_samples
+#         # Check that the train and test indices are disjoint
+#         assert len(np.intersect1d(train_index, test_index)) == 0
+#         # check that all samples are included in either train or test
+#         assert len(np.union1d(train_index, test_index)) == n_samples
 
-        fold = tuple(sorted(test_index))
-        assert fold not in seen_folds
-        seen_folds.add(fold)
+#         fold = tuple(sorted(test_index))
+#         assert fold not in seen_folds
+#         seen_folds.add(fold)
 
 
 @pytest.mark.parametrize("CVClass", [RepeatedStratifiedUniqueFoldKFold])

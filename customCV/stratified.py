@@ -3,6 +3,7 @@ from collections import Counter
 import numpy as np
 
 from .stratified_generator import stratified_combinations
+from .utils import get_allocation
 
 
 class RepeatedStratifiedUniqueFoldKFold(RepeatedUniqueFoldKFold):
@@ -33,14 +34,37 @@ class RepeatedStratifiedUniqueFoldKFold(RepeatedUniqueFoldKFold):
         random_state=42,
         max_iter=int(1e6),
         tolerance=0,
+        max_tries_per_fold=100,
         verbose=0,
         warn=True,
     ):
         super().__init__(n_splits, n_repeats, random_state, max_iter, verbose, warn)
         self.tolerance = tolerance
+        self.max_tries_per_fold = max_tries_per_fold
 
-    # def comb_generator(self, iterable, r):
-    #     return stratified_combinations(iterable, r, self.rng)
+        if warn:
+            print(
+                f"Warning: Not properly tested. Use at your own risk. Check splits before using them."
+            )
+
+    def comb_generator(self, iterable, r):
+        return stratified_combinations(iterable, r, self.rng)
+
+    def _is_fold_stratified(self, fold_with_labels, overall_ratios, fold_size):
+        """Checks if a fold is stratified based on class distribution."""
+        fold_class_counts = Counter(label for _, label in fold_with_labels)
+        for (
+            class_label,
+            expected_ratio,
+        ) in overall_ratios.items():
+            count = fold_class_counts.get(class_label, 0)
+            expected_count = round(expected_ratio * fold_size)
+            if abs(count - expected_count) > self.tolerance:
+                return False
+        return True
+
+    def get_allocation(self, y):
+        return get_allocation(y, self.n_splits)
 
     def find_next_fold_(
         self,
@@ -62,6 +86,7 @@ class RepeatedStratifiedUniqueFoldKFold(RepeatedUniqueFoldKFold):
 
         fold_gen = self.comb_generator(available_samples, fold_size)
 
+        fold_tries = 0
         while True:
             try:
                 fold_with_labels = next(fold_gen)
@@ -70,18 +95,17 @@ class RepeatedStratifiedUniqueFoldKFold(RepeatedUniqueFoldKFold):
                 )  # Extract sample indices
                 potential_path = tuple(current_fold_path + [fold])
 
-                if fold not in used_folds and potential_path not in exhausted_paths:
-                    fold_class_counts = Counter(label for _, label in fold_with_labels)
-                    is_stratified = True
-                    for class_label in class_counts.keys():
-                        count = fold_class_counts.get(class_label, 0)
-                        expected_count = round(overall_ratios[class_label] * fold_size)
-                        if abs(count - expected_count) > self.tolerance:
-                            is_stratified = False
-                            break
-
-                    if is_stratified:
-                        return fold
+                if (
+                    fold not in used_folds
+                    and potential_path not in exhausted_paths
+                    and self._is_fold_stratified(
+                        fold_with_labels, overall_ratios, fold_size
+                    )
+                ):
+                    return fold
+                fold_tries += 1
+                if fold_tries > self.max_tries_per_fold:
+                    return None
             except StopIteration:
                 return None
 
@@ -124,7 +148,7 @@ class RepeatedStratifiedUniqueFoldKFold(RepeatedUniqueFoldKFold):
             if next_fold is None:
                 if len(current_fold_path) == 0:
                     raise ValueError(
-                        "Not enough samples to create unique, stratified folds."
+                        "Could not find a valid folds. There may not be enough samples to create unique, stratified folds. You can try 1) reducing total number of splits, 2) increasing max_tries_per_fold, 3) increasing max_iter, or 4) increasing tolerance."
                     )
 
                 exhausted_paths.add(tuple(current_fold_path))

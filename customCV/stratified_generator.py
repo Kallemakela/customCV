@@ -1,3 +1,7 @@
+"""
+Does not work consistently. See bottom of file for example.
+"""
+
 import numpy as np
 import random
 from itertools import combinations
@@ -111,10 +115,10 @@ def stratified_combinations(iterable, r, rng=None):
 
 
 # rng = np.random.default_rng(0)
-# n_samples = 40
-# n_splits = 10
+# n_samples = 8
+# n_splits = 2
 # n_repeats = 5
-# n_classes = 4
+# n_classes = 3
 # y = (np.arange(n_samples) // np.ceil(n_samples / n_classes)).astype(int)
 # u, c = np.unique(y, return_counts=True)
 # print(u, c)
@@ -122,11 +126,11 @@ def stratified_combinations(iterable, r, rng=None):
 # class_counts = dict(Counter(y))
 # overall_ratios = {label: count / n_samples for label, count in class_counts.items()}
 # iterable = [(i, y[i]) for i in range(n_samples)]
-# g = stratified_combinations(
-#     iterable, n_samples // n_splits, rng, class_counts, overall_ratios
-# )
+# g = stratified_combinations(iterable, n_samples // n_splits, rng=rng)
 
 # for i, fold in enumerate(g):
 #     print(f"Fold {i}: {fold}")
 #     if i > 10:
 #         break
+
+# %%
