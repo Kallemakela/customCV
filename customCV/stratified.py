@@ -148,7 +148,7 @@ class RepeatedStratifiedUniqueFoldKFold(RepeatedUniqueFoldKFold):
             if next_fold is None:
                 if len(current_fold_path) == 0:
                     raise ValueError(
-                        "Could not find a valid folds. There may not be enough samples to create unique, stratified folds. You can try 1) reducing total number of splits, 2) increasing max_tries_per_fold, 3) increasing max_iter, or 4) increasing tolerance."
+                        "Could not find a valid folds. There may not be enough samples to create unique, stratified folds. You can try 1) increasing tolerance, 2) reducing total number of splits, 3) increasing max_tries_per_fold, or 4) increasing max_iter."
                     )
 
                 exhausted_paths.add(tuple(current_fold_path))
