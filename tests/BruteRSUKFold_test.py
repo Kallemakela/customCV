@@ -2,11 +2,11 @@ import numpy as np
 import pytest
 from collections import defaultdict
 from itertools import combinations
-from customCV.brute import RSUKfold
+from customCV.brute import RSUKFold, RSUKFoldWithTolerance
 from scipy.stats import chisquare
 
 
-@pytest.mark.parametrize("CVClass", [RSUKfold])
+@pytest.mark.parametrize("CVClass", [RSUKFold])
 def test_initialization(CVClass):
     # Test initialization
     cv = CVClass(n_splits=4, n_repeats=3, random_state=42)
@@ -15,7 +15,7 @@ def test_initialization(CVClass):
     assert cv.random_state == 42
 
 
-@pytest.mark.parametrize("CVClass", [RSUKfold])
+@pytest.mark.parametrize("CVClass", [RSUKFold])
 def test_split_functionality(CVClass):
     n_samples = 8
     n_repeats = 5
@@ -42,9 +42,9 @@ def test_split_functionality(CVClass):
         assert count == n_repeats
 
 
-@pytest.mark.parametrize("CVClass", [RSUKfold])
+@pytest.mark.parametrize("CVClass", [RSUKFold])
 def test_stratification_perfect(CVClass):
-    CVClass = RSUKfold
+    CVClass = RSUKFold
     n_samples = 40
     n_repeats = 5
     n_splits = 10
@@ -68,7 +68,7 @@ def test_stratification_perfect(CVClass):
             assert abs(label_ratio - exp_ratio) <= 0
 
 
-@pytest.mark.parametrize("CVClass", [RSUKfold])
+@pytest.mark.parametrize("CVClass", [RSUKFold])
 def test_stratification_uneven(CVClass):
     n_samples = 39
     n_repeats = 5
@@ -91,7 +91,7 @@ def test_stratification_uneven(CVClass):
             assert abs(label_ratio - exp_ratio) <= 1
 
 
-@pytest.mark.parametrize("CVClass", [RSUKfold])
+@pytest.mark.parametrize("CVClass", [RSUKFold])
 def test_unique_folds_across_repeats(CVClass):
     n_samples = 40
     n_repeats = 5
@@ -108,7 +108,7 @@ def test_unique_folds_across_repeats(CVClass):
         seen_folds.add(fold)
 
 
-@pytest.mark.parametrize("CVClass", [RSUKfold])
+@pytest.mark.parametrize("CVClass", [RSUKFold])
 def test_random_state(CVClass):
     n_samples = 8
     n_classes = 4
@@ -159,12 +159,12 @@ def _test_exhaustion(CVClass, random_state):
         assert tuple(sorted(comb)) in seen_folds
 
 
-@pytest.mark.parametrize("CVClass", [RSUKfold])
+@pytest.mark.parametrize("CVClass", [RSUKFold])
 def test_exhaustion_random(CVClass):
     _test_exhaustion(CVClass, random_state=42)
 
 
-@pytest.mark.parametrize("CVClass", [RSUKfold])
+@pytest.mark.parametrize("CVClass", [RSUKFold])
 def test_error_handling(CVClass):
     n_samples = 8
     n_classes = 4
@@ -187,7 +187,7 @@ def test_error_handling(CVClass):
         list(cv.split(X, y))
 
 
-@pytest.mark.parametrize("CVClass", [RSUKfold])
+@pytest.mark.parametrize("CVClass", [RSUKFold])
 def test_correlation(CVClass):
     """Test that there is no correlation between samples appearing in the same test set, i.e. sample_x is not more likely to appear with sample_y than any other sample."""
 
@@ -263,3 +263,30 @@ def test_correlation(CVClass):
     assert (
         max_cooccurrences_diff < max_allowed_cooccurrences_diff
     ), f"Maximum co-occurrences ({max_cooccurrences_diff}) is too high. Possible correlation."
+
+
+def test_tolerance():
+    n_samples = 8
+    n_repeats = 5
+    n_splits = 4
+    n_classes = 2
+    y = (np.arange(n_samples) // np.ceil(n_samples / n_classes)).astype(int)
+    X = np.arange(n_samples)
+
+    # Fails with no tolerance
+    cv_no_tol = RSUKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=42)
+    with pytest.raises(ValueError):
+        list(cv_no_tol.split(X, y))
+
+    tolerance = 1
+    cv_tol = RSUKFoldWithTolerance(
+        n_splits=n_splits, n_repeats=n_repeats, random_state=42, tolerance=tolerance
+    )
+    test_indices_count = defaultdict(int)
+    for split_ix, (train_index, test_index) in enumerate(cv_tol.split(X, y)):
+        assert len(np.intersect1d(train_index, test_index)) == 0
+        assert len(np.union1d(train_index, test_index)) == len(X)
+        for idx in test_index:
+            test_indices_count[idx] += 1
+    for count in test_indices_count.values():
+        assert count == n_repeats
