@@ -129,6 +129,13 @@ class GroupCVWrapper:
             )
             yield train_idx, test_idx
 
+    def get_n_splits(self, X=None, y=None, groups=None):
+        if groups is None:
+            raise ValueError("Groups must be specified for GroupCVWrapper")
+        unique_groups = np.unique(groups)
+        pseudo_X = np.arange(len(unique_groups)).reshape(-1, 1)
+        return self.base_cv.get_n_splits(pseudo_X)
+
 
 class RepeatedUniqueFoldGroupKFold:
     """Group extension of RepeatedUniqueFoldKFold"""
